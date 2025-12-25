@@ -1,0 +1,11 @@
+feature_raw,mean_abs_shap,feature_clean,feature_short
+num__fun3_1_v,0.13522572581763043,Partner: What they think the OTHER person values: fun (Time 1),V:Partner fun-ness
+num__exphappy_v,0.08006569644144855,"Partner: Overall, on a scale of 1-10, how happy do you expect to be with the people you meet during the speed-dating event?",V:Excitement for event
+num__imprelig_v,0.076674094300714,Partner: How important is it to you (on a scale of 1-10) that a person you date be of the same religious background?,V:Same religion
+num__abs_age_diff,0.062285048998933674,"Absolute age difference between (iid, pid)",U:Absolute age difference
+num__imprace_v,0.06215183300515421,Partner: How important is it to you (on a scale of 1-10) that a person you date be of the same racial/ethnic background?,V:Same ethnicity
+num__shar1_1_v,0.05512681426384204,Partner: Stated preference weight on shared interests (Time 1),V:Shared interests
+num__amb3_1_v,0.05147488408065897,Partner: What they think the OTHER person values: ambition (Time 1),V:Partner ambitiousness
+num__age_v,0.04892135825992175,Partner: Age (years),V:Age
+num__intel1_1_v,0.04797699013237574,Partner: Stated preference weight on intelligence (Time 1),V:Partner intelligence
+num__sinc1_1_v,0.043540904075906287,Partner: Stated preference weight on sincerity (Time 1),V:Partner sincerity

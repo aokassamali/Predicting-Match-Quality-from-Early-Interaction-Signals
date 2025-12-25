@@ -1,0 +1,61 @@
+{
+  "race": {
+    "1": "Black/African American",
+    "2": "European/Caucasian-American",
+    "3": "Latino/Hispanic American",
+    "4": "Asian/Pacific Islander/Asian-American",
+    "5": "Native American",
+    "6": "Other"
+  },
+  "goal": {
+    "1": "Seemed like a fun night out",
+    "2": "To meet new people",
+    "3": "To get a date",
+    "4": "Looking for a serious relationship",
+    "5": "To say I did it",
+    "6": "Other"
+  },
+  "field_cd": {
+    "1": "Law",
+    "2": "Math",
+    "3": "Social Science, Psychologist",
+    "4": "Medical Science, Pharmaceuticals, and Bio Tech",
+    "5": "Engineering",
+    "6": "English/Creative Writing/ Journalism",
+    "7": "History/Religion/Philosophy",
+    "8": "Business/Econ/Finance",
+    "9": "Education, Academia",
+    "10": "Biological Sciences/Chemistry/Physics",
+    "11": "Social Work",
+    "12": "Undergrad/undecided",
+    "13": "Political Science/International Affairs",
+    "14": "Film",
+    "15": "Fine Arts/Arts Administration",
+    "16": "Languages",
+    "17": "Architecture",
+    "18": "Other"
+  },
+  "career_c": {
+    "1": "Lawyer",
+    "2": "Academic/Research",
+    "3": "Psychologist",
+    "4": "Doctor/Medicine",
+    "5": "Engineer",
+    "6": "Creative Arts/Entertainment",
+    "7": "Banking/Consulting/Finance/Marketing/Business/CEO/Entrepreneur/Admin",
+    "8": "Real Estate",
+    "9": "International/Humanitarian Affairs",
+    "10": "Undecided",
+    "11": "Social Work",
+    "12": "Speech Pathology",
+    "13": "Politics",
+    "14": "Pro sports/Athletics",
+    "15": "Other",
+    "16": "Journalism",
+    "17": "Architecture"
+  },
+  "gender": {
+    "0": "Female",
+    "1": "Male"
+  }
+}
