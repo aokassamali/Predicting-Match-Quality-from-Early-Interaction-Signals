@@ -115,8 +115,8 @@ The core feature set is designed to be realistic for “early / pre-interaction�
 ## Visuals (generated)
 
 After running Script 14, you should have:
-- ![Stage B NDCG Comparison](reports/figures/stage_b_ndcg_comparison.png) — baseline vs model NDCG bars
-- ![Feature Importance](reports/figures/stage_b_feature_importance_shap.png) — importance plot
+![Stage B NDCG Comparison](reports/figures/stage_b_ndcg_comparison.png)
+![Feature Importance](reports/figures/stage_b_feature_importance_shap.png)
 
 ---
 
