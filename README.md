@@ -21,7 +21,7 @@ Reference datasets:
   https://www.kaggle.com/datasets/ulrikthygepedersen/speed-dating
   ```
 
-Data dictionary: see `reports/speed_dating_key_extracted.csv` (extracted from the original key file).
+Data dictionary: see `data/speed_dating_key_extracted.csv` (extracted from the original key file).
 
 ---
 
@@ -58,7 +58,7 @@ Best Stage A (nested CV, wave-based outer split, core features):
 
 **Label:** `quality = min(like, like_o)` in \[0, 10\], i.e., mutual enthusiasm.
 
-**Metric:** NDCG@K computed on a binary relevance derived from quality (consistent across Scripts 12/13), plus threshold Recall@K for quality ≥ 7 and ≥ 8.
+**Metric:** NDCG@K computed on a binary relevance derived from quality, plus threshold Recall@K for quality ≥ 7 and ≥ 8.
 
 Final Stage B (outer-test mean±std; nested CV selection by inner-val NDCG@5):
 - Random baseline:  
@@ -115,9 +115,8 @@ The core feature set is designed to be realistic for “early / pre-interaction�
 ## Visuals (generated)
 
 After running Script 14, you should have:
-- `results/figures/stage_b_ndcg_comparison.png` — baseline vs model NDCG bars
-- `results/figures/stage_b_top10_features_shap.csv` — top 10 features (SHAP, cleaned names)
-- `results/figures/stage_b_feature_importance_shap.png` — importance plot
+- ![Stage B NDCG Comparison](reports/figures/stage_b_ndcg_comparison.png) — baseline vs model NDCG bars
+- ![Feature Importance](reports/figures/stage_b_feature_importance_shap.png) — importance plot
 
 ---
 
@@ -179,15 +178,6 @@ python scripts/14_make_stage_b_figure.py
 ```
 
 ---
-
-
-### Making the figures visible on GitHub
-
-If `results/` is gitignored, the PNGs won’t render on GitHub by default. Two common options:
-
-1) **Commit figures under `reports/figures/`** (recommended): copy the generated PNGs/CSV from `results/figures/` into `reports/figures/` and commit those.
-2) Or, **unignore only the figure artifacts** by adding a negate rule in `.gitignore` (e.g., `!results/figures/*.png`).
-
 
 ## Notes / next steps
 
