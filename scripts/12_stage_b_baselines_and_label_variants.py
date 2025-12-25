@@ -65,7 +65,8 @@ def dcg_at_k(rels: np.ndarray, k: int) -> float:
     if rels.size == 0:
         return 0.0
     discounts = 1.0 / np.log2(np.arange(2, rels.size + 2))
-    return float(np.sum(rels * discounts))
+    gains = (2.0 ** rels - 1.0)   # <-- standard DCG gain
+    return float(np.sum(gains * discounts))
 
 
 def ndcg_at_k(y_true_sorted: np.ndarray, k: int) -> float:
@@ -92,9 +93,9 @@ def recall_at_k(y_true_sorted_bin: np.ndarray, k: int) -> float:
     return float(y_true_sorted_bin[:k].sum() > 0)
 
 
-def evaluate(df: pd.DataFrame, score_col: str, graded_col: str = "quality_bin") -> Dict:
+def evaluate(df: pd.DataFrame, score_col: str, graded_col: str = "quality_grade") -> Dict:
     """
-    NDCG uses graded relevance (quality_bin).
+    NDCG uses graded relevance (quality_grade; 0..10 int) with standard DCG gain (2^rel - 1).
     MAP/Recall computed for thresholds over raw quality.
     """
     out = {"ndcg": {}, "map": {t: {} for t in THRESHOLDS}, "recall": {t: {} for t in THRESHOLDS}}
@@ -364,6 +365,7 @@ def main() -> None:
     df = pd.read_parquet(DATA_PATH).copy()
     df = df.dropna(subset=["wave", "iid", "pid", "quality"]).copy()
     df["wave"] = pd.to_numeric(df["wave"], errors="coerce").astype(int)
+    df["quality_grade"] = np.clip(np.rint(pd.to_numeric(df["quality"], errors="coerce")), 0, 10).astype(int)
 
     # Keep bins if present (safe), but we will evaluate NDCG using quality_grade for more signal.
     if "quality_bin" in df.columns:

@@ -1,151 +1,195 @@
-# Predicting Match Quality from Early Interaction Signals (Speed Dating)
+# Predicting Match Quality from Early Interaction Signals
 
-A learning-to-rank recommender system built on the **UCI Speed Dating** dataset.  
-We rank candidates **within an event** (`wave`) for a given participant (`iid`), using only **pre-date/profile/preference** information.
+Dating products live or die on **who appears in the top few results**. This repo explores whether *pre-interaction / early signals* can surface better matches in a two-sided market, using the classic Speed Dating dataset.
 
-This repo implements two stages:
-
-- **Stage A — Mutual Match Ranking:** rank who you’ll mutually match with (binary, noisy).
-- **Stage B — Mutual Date Quality Ranking:** rank who you’ll have the best date with (graded, much stronger supervision).
+**Main result:** a LambdaMART (LightGBM) ranker improves **NDCG@5** over strong baselines when ranking *mutual satisfaction* (Stage B).
 
 ---
 
-## TL;DR Results
+## Dataset
 
-### Stage B (primary, strongest result): Mutual Date Quality Ranking
+This project uses the **Speed Dating** dataset (experimental events from 2002–2004).  
+I used a wave-based split to avoid leakage across events.
 
-**Protocol:** wave-based nested CV (outer held-out waves for TEST; inner train/val split over remaining waves).  
-**Model:** LightGBM LambdaMART (LambdaRank).  
-**NDCG uses** `quality_grade` (0–10 integer).
+Reference datasets:
+- OpenML “SpeedDating” dataset page (adapted from the UCI version):  
+  ```
+  https://www.openml.org/d/40536
+  ```
+- Kaggle mirror (same underlying data, convenient download):  
+  ```
+  https://www.kaggle.com/datasets/ulrikthygepedersen/speed-dating
+  ```
 
-**Final model (selected by inner-VAL mean NDCG@5):**
-- **K=5  | TEST NDCG = 0.7972 ± 0.0262 | Recall@5 (quality ≥ 7) = 0.6924 | Recall@5 (quality ≥ 8) = 0.3169**
-- **K=10 | TEST NDCG = 0.8572 ± 0.0263**
-
-**Baselines (proper CV, no leakage):**
-- Random:
-  - K=5  | TEST NDCG **0.7717 ± 0.0235**
-  - K=10 | TEST NDCG **0.8406 ± 0.0280**
-- Partner mean-quality prior (computed on TRAIN only, applied to TEST):
-  - K=5  | TEST NDCG **0.7674 ± 0.0213**
-  - K=10 | TEST NDCG **0.8379 ± 0.0272**
-
-**Frozen config (Stage B):**
-- learning_rate = 0.03
-- num_leaves = 31
-- min_data_in_leaf = 150
-- lambda_l2 = 20.0
-- max_depth = 8
-- feature_fraction = 0.85
-- bagging_fraction = 0.85
-- bagging_freq = 1
+Data dictionary: see `reports/speed_dating_key_extracted.csv` (extracted from the original key file).
 
 ---
 
-### Stage A (secondary): Mutual Match Ranking (harder/noisier)
+## Problem framing: reciprocal ranking in a two-sided market
 
-Stage A is harder because the label is a noisy binary outcome; performance gains were smaller and more split-sensitive than Stage B.
+A “query” is one user in one event:
+- **Query:** `(wave, iid)` — user `iid` in speed-dating event `wave`
+- **Candidates:** all `pid` that `iid` met in that wave
+- **Task:** rank candidates so the top of the list contains the best outcomes
 
-One representative Stage A result (outer-test, wave-based CV, core features):
-- K=5  | TEST NDCG ≈ 0.296 (std ≈ 0.057)
-- K=10 | TEST NDCG ≈ 0.394 (std ≈ 0.056)
+### Why ranking (not just classification)?
+Classification asks: “Will *this pair* match?”  
+Product asks: “Who should appear in the **top 5**?”
 
----
-
-## Dataset & Query Definition (Recommender Framing)
-
-A “query” is a participant in a specific event:
-- **Query:** `(wave, iid)`
-- **Candidates:** all partners `pid` that `iid` met in that wave
-- **Task:** rank candidates for each query
-
-Empirical diagnostics (Stage B dataset):
-- Avg candidates/query: **14.56**
-- Avg tie ratio within query (1 − unique_grades / candidates): **0.593**
-- Pct queries with ≥1 “great date” (quality ≥ 8): **0.546**
-- Mean count of (quality ≥ 8) per query: **1.016**
-
-> Why random NDCG can look “high”: with many ties (same grade shared by many candidates), lots of orderings have similar DCG. The key is **lift vs baselines under the same protocol**.
+So this repo evaluates and trains models using ranking metrics (NDCG / Recall@K), not just AUC.
 
 ---
 
-## Labels
+## Stage A (exploratory): predict mutual match (binary)
 
-### Stage A — mutual match
-- `match ∈ {0,1}`
+**Label:** `match` (mutual yes/no)
 
-### Stage B — mutual date quality (proxy)
-- `quality = min(like, like_o)`  
-  Enforces mutual satisfaction (one-sided interest ≠ high quality).
-- For ranking: `quality_grade = round(quality)` clipped to `0..10` (integer relevance grades for LambdaRank).
+This was intentionally treated as an *exploratory* stage because the label is noisy and shifts across events (waves). It still provides a baseline and shows the iteration process.
 
----
+Best Stage A (nested CV, wave-based outer split, core features):
+- K=5  NDCG **0.2920 ± 0.0464**
+- K=10 NDCG **0.3879 ± 0.0467**
 
-## Methods
-
-### Why learning-to-rank (not just classification)?
-Classification asks “will this pair match?” independently.  
-A recommender needs **good ordering**: best options should appear at the top.
-
-We use:
-- **LightGBM LambdaMART (LambdaRank objective)** to optimize ranking swaps directly.
-
-### Splitting to avoid leakage
-We split by **wave** so the model can’t learn event-specific quirks from the same event it’s evaluated on.
+**Takeaway:** “match” was too noisy as a proxy for “good outcomes,” so I pivoted to Stage B.
 
 ---
 
-## Repo structure (suggested)
+## Stage B (main deliverable): predict mutual date quality (graded)
 
-```
-.
-├── data/                 # raw dataset files (CSV, key doc)
-├── scripts/              # pipeline scripts
-├── results/              # generated artifacts (gitignored)
-├── reports/              # committed summaries
-├── requirements.txt
-└── README.md
+**Label:** `quality = min(like, like_o)` in \[0, 10\], i.e., mutual enthusiasm.
+
+**Metric:** NDCG@K computed on a binary relevance derived from quality (consistent across Scripts 12/13), plus threshold Recall@K for quality ≥ 7 and ≥ 8.
+
+Final Stage B (outer-test mean±std; nested CV selection by inner-val NDCG@5):
+- Random baseline:  
+  - K=5  NDCG **0.4878 ± 0.0487**  
+  - K=10 NDCG **0.6156 ± 0.0534**
+- Partner-prior baseline (pid mean quality from TRAIN only):  
+  - K=5  NDCG **0.4800 ± 0.0450**  
+  - K=10 NDCG **0.6084 ± 0.0524**
+- **LightGBM LambdaMART (best):**  
+  - K=5  NDCG **0.5296 ± 0.0530**  
+  - K=10 NDCG **0.6460 ± 0.0515**  
+  - Recall@5 (quality ≥ 7): **0.6924**  
+  - Recall@5 (quality ≥ 8): **0.3169**
+
+Frozen config (used for final eval):
+```json
+{
+  "learning_rate": 0.03,
+  "num_leaves": 31,
+  "min_data_in_leaf": 150,
+  "lambda_l2": 20.0,
+  "max_depth": 8,
+  "feature_fraction": 0.85,
+  "bagging_fraction": 0.85,
+  "bagging_freq": 1
+}
 ```
 
-Recommended: keep `results/` gitignored, commit `reports/`.
+---
+
+## What features are in “core features”?
+
+The core feature set is designed to be realistic for “early / pre-interaction” ranking:
+
+**A) User / partner profile signals (u vs v)**
+- demographics: age, gender, race, field of study, etc.
+- stated intent: goal for attending the event
+
+**B) Stated preferences (“what I say I want”)**
+- preference weights on attributes like attractiveness / sincerity / intelligence / fun / ambition / shared interests
+
+**C) Expectations**
+- expected number of good matches, expected happiness, etc.
+
+**D) Simple interaction features**
+- absolute age difference
+- same-race indicator
+- preference alignment proxies (dot-products between preference vectors and self-rating vectors)
+
+> Note: Outcome-leaky columns (anything that directly encodes post-date outcomes) are excluded from training features.
 
 ---
 
-## How to run (typical)
+## Visuals (generated)
 
-1) Create env, install deps
-- Windows PowerShell:
-```powershell
+After running Script 14, you should have:
+- `results/figures/stage_b_ndcg_comparison.png` — baseline vs model NDCG bars
+- `results/figures/stage_b_top10_features_shap.csv` — top 10 features (SHAP, cleaned names)
+- `results/figures/stage_b_feature_importance_shap.png` — importance plot
+
+---
+
+### Stage B: what the model is using (Top-10)
+
+SHAP-style importances (LightGBM `pred_contrib`, mean absolute contribution):
+
+| rank | Feature (short) | Feature (raw) |
+| --- | --- | --- |
+| 1 | V:Partner fun-ness | num__fun3_1_v |
+| 2 | V:Excitement for event | num__exphappy_v |
+| 3 | V:Same religion | num__imprelig_v |
+| 4 | U:Absolute age difference | num__abs_age_diff |
+| 5 | V:Same ethnicity | num__imprace_v |
+| 6 | V:Shared interests | num__shar1_1_v |
+| 7 | V:Partner ambitiousness | num__amb3_1_v |
+| 8 | V:Age | num__age_v |
+| 9 | V:Partner intelligence | num__intel1_1_v |
+| 10 | V:Partner sincerity | num__sinc1_1_v |
+
+Key takeaways:
+- Candidate beliefs/preferences dominate: the strongest signal is the candidate's *belief that others value fun* (`fun3_1_v`).
+- Event-level optimism matters: higher expected happiness with event partners (`exphappy_v`) is a strong predictor of higher mutual satisfaction.
+- Stated similarity constraints show up: importance of same religion / ethnicity (`imprelig_v`, `imprace_v`).
+- Simple pairwise structure matters: absolute age gap (`abs_age_diff`).
+- Classic preference weights contribute: shared interests, ambition, intelligence, sincerity (`shar1_1_v`, `amb3_1_v`, `intel1_1_v`, `sinc1_1_v`).
+
+> Note: these are *model usage* signals for ranking, not causal effects.
+
+
+## Repo layout
+
+```
+data/        # raw data + key
+results/     # parquet datasets + metrics csv (gitignored)
+reports/     # final summaries, data dictionary extraction
+scripts/     # pipeline scripts (numbered)
+```
+
+---
+
+## How to run (high-level)
+
+1) Create venv + install deps:
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# activate your venv...
 pip install -r requirements.txt
 ```
 
-- macOS/Linux/Git Bash:
+2) Build datasets + train + evaluate:
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+bash run_final.sh
 ```
 
-2) Build Stage B dataset
+3) Generate figures + top features:
 ```bash
-python scripts/10_build_stage_b_quality_dataset.py
-```
-
-3) Run Stage B nested CV + baselines (the script you used to get final numbers)
-```bash
-python scripts/12_stage_b_baselines_and_label_variants.py
+python scripts/14_make_stage_b_figure.py
 ```
 
 ---
 
-## Report
-- See `reports/stage_b_final_summary.md`
 
----
+### Making the figures visible on GitHub
 
-## Future work
-- Better data (larger scale, fewer ties, clearer online analogue) → consider **two-tower retrieval + re-ranker**.
-- Add diversity constraints and “top-of-list” product metrics (e.g., satisfaction@K, exposure fairness).
-- Robustness: test across different cohorts / waves / feature subsets.
+If `results/` is gitignored, the PNGs won’t render on GitHub by default. Two common options:
+
+1) **Commit figures under `reports/figures/`** (recommended): copy the generated PNGs/CSV from `results/figures/` into `reports/figures/` and commit those.
+2) Or, **unignore only the figure artifacts** by adding a negate rule in `.gitignore` (e.g., `!results/figures/*.png`).
+
+
+## Notes / next steps
+
+- A deeper ML extension would be a **two-tower retrieval** model, but this dataset’s small size and event heterogeneity makes it a tougher fit than tree ranking.
+- If I had better product logs (message text, swipes, time-on-profile, retention), I’d push toward representation learning + counterfactual evaluation.
